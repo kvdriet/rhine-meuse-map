@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhine-Meuse Estuary - Interactive Map</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e27;
+            color: #fff;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            max-width: 320px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        
+        .info-panel h2 {
+            color: #38bdf8;
+            font-size: 18px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #38bdf8;
+            padding-bottom: 8px;
+        }
+        
+        .info-panel p {
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+        
+        .channel-info {
+            background: rgba(56, 189, 248, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            border-left: 3px solid #38bdf8;
+        }
+        
+        .channel-info h3 {
+            color: #38bdf8;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+        
+        .channel-info p {
+            font-size: 12px;
+            margin: 4px 0;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 1000;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        
+        .legend h3 {
+            color: #38bdf8;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 6px 0;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 4px;
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+        
+        .marker-point {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .leaflet-popup-content-wrapper {
+            background: rgba(15, 23, 42, 0.98);
+            color: #fff;
+            border-radius: 8px;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+        }
+        
+        .leaflet-popup-content {
+            margin: 10px;
+            font-size: 13px;
+        }
+        
+        .leaflet-popup-content h4 {
+            color: #38bdf8;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+        
+        .leaflet-popup-tip {
+            background: rgba(15, 23, 42, 0.98);
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            background: rgba(56, 189, 248, 0.9);
+            color: #0a0e27;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+        }
+        
+        .control-btn:hover {
+            background: #0ea5e9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(56, 189, 248, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="controls">
+        <button class="control-btn" onclick="toggleChannels()">Toggle Channels</button>
+        <button class="control-btn" onclick="toggleMarkers()">Toggle Markers</button>
+        <button class="control-btn" onclick="resetView()">Reset View</button>
+    </div>
+    
+    <div class="info-panel">
+        <h2>Rhine-Meuse Estuary</h2>
+        <p>Interactive tidal network visualization</p>
+        <div class="channel-info" id="channel-details">
+            <h3>Click on channels to see details</h3>
+            <p>The network consists of river, middle, and ocean sections.</p>
+        </div>
+    </div>
+    
+    <div class="legend">
+        <h3>Channel Legend</h3>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ef4444;"></div>
+            <span>River Channels (Rhine & Meuse)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f59e0b;"></div>
+            <span>Middle Sections</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #3b82f6;"></div>
+            <span>Ocean Channels</span>
+        </div>
+        <div class="legend-item">
+            <div class="marker-point" style="background: #10b981;"></div>
+            <span>Junction Points</span>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script>
+        var map;
+        var channelLayers = [];
+        var markerLayers = [];
+        var channelsVisible = true;
+        var markersVisible = true;
+        
+        var networkData = {
+            rivers: [
+                {name: "Rhine", coords: [[51.97, 4.12], [51.90, 4.30]], color: "#ef4444", depth: 5, length: 95, width: 450},
+                {name: "Meuse", coords: [[51.98, 4.35], [51.92, 4.40]], color: "#ef4444", depth: 8, length: 44.5, width: 2200}
+            ],
+            middle: [
+                {name: "Middle Section 1", coords: [[51.90, 4.30], [51.87, 4.45]], color: "#f59e0b", depth: 8, length: 47.5, width: 200},
+                {name: "Middle Section 2", coords: [[51.92, 4.40], [51.87, 4.45]], color: "#f59e0b", depth: 5, length: 23.4, width: 420},
+                {name: "Middle Section 3", coords: [[51.87, 4.45], [51.82, 4.60]], color: "#f59e0b", depth: 10, length: 35.8, width: 320}
+            ],
+            ocean: [
+                {name: "Ocean Channel 1", coords: [[51.87, 4.45], [51.80, 4.50]], color: "#3b82f6", depth: 15, length: 16.4, width: 700},
+                {name: "Ocean Channel 2", coords: [[51.82, 4.60], [51.75, 4.70]], color: "#3b82f6", depth: 7.6, length: 21.7, width: 331}
+            ]
+        };
+        
+        var junctions = [
+            {name: "Junction 1", coords: [51.90, 4.30], connects: ["Rhine", "Middle 1"]},
+            {name: "Junction 2", coords: [51.92, 4.40], connects: ["Meuse", "Middle 2"]},
+            {name: "Junction 3", coords: [51.87, 4.45], connects: ["Middle 1", "Middle 2", "Middle 3", "Ocean 1"]},
+            {name: "Junction 4", coords: [51.82, 4.60], connects: ["Middle 3", "Ocean 2"]}
+        ];
+        
+        function initMap() {
+            if (typeof L === 'undefined') {
+                setTimeout(initMap, 200);
+                return;
+            }
+            
+            map = L.map('map').setView([51.88, 4.45], 11);
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Esri',
+                maxZoom: 18
+            }).addTo(map);
+            
+            drawChannels();
+            drawJunctions();
+        }
+        
+        function drawChannels() {
+            Object.keys(networkData).forEach(function(key) {
+                networkData[key].forEach(function(channel) {
+                    var line = L.polyline(channel.coords, {
+                        color: channel.color,
+                        weight: 6,
+                        opacity: 0.8
+                    }).addTo(map);
+                    
+                    line.on('click', function() {
+                        showChannelInfo(channel);
+                    });
+                    
+                    line.bindPopup('<h4>' + channel.name + '</h4>' +
+                                   '<p><strong>Depth:</strong> ' + channel.depth + ' m</p>' +
+                                   '<p><strong>Length:</strong> ' + channel.length + ' km</p>' +
+                                   '<p><strong>Width:</strong> ' + channel.width + ' m</p>');
+                    
+                    channelLayers.push(line);
+                });
+            });
+        }
+        
+        function drawJunctions() {
+            junctions.forEach(function(junction) {
+                var marker = L.circleMarker(junction.coords, {
+                    radius: 8,
+                    fillColor: '#10b981',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.9
+                }).addTo(map);
+                
+                marker.bindPopup('<h4>' + junction.name + '</h4><p>Connects: ' + junction.connects.join(', ') + '</p>');
+                markerLayers.push(marker);
+            });
+        }
+        
+        function showChannelInfo(channel) {
+            document.getElementById('channel-details').innerHTML = 
+                '<h3>' + channel.name + '</h3>' +
+                '<p><strong>Depth:</strong> ' + channel.depth + ' m</p>' +
+                '<p><strong>Length:</strong> ' + channel.length + ' km</p>' +
+                '<p><strong>Width:</strong> ' + channel.width + ' m</p>';
+        }
+        
+        function toggleChannels() {
+            channelsVisible = !channelsVisible;
+            channelLayers.forEach(function(layer) {
+                if (channelsVisible) {
+                    map.addLayer(layer);
+                } else {
+                    map.removeLayer(layer);
+                }
+            });
+        }
+        
+        function toggleMarkers() {
+            markersVisible = !markersVisible;
+            markerLayers.forEach(function(layer) {
+                if (markersVisible) {
+                    map.addLayer(layer);
+                } else {
+                    map.removeLayer(layer);
+                }
+            });
+        }
+        
+        function resetView() {
+            if (map) {
+                map.setView([51.88, 4.45], 11);
+            }
+        }
+        
+        setTimeout(initMap, 100);
+    </script>
+</body>
+</html>
